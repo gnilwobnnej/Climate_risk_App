@@ -4,26 +4,26 @@ import folium
 import geopandas as gpd
 
 
-#Load risk GeoJSON layers
+#Loads three GeoJSON files into GeoDataFrames. Each file contains polygons with a risk score for one hazard.
 
 flood = gpd.read_file("outputs/flood_risk.geojson")
 wildfire = gpd.read_file("outputs/wildfire_risk.geojson")
 heat = gpd.read_file("outputs/heat_risk.geojson")
 
 
-#Prepare IDs for merging
+#adds an ID column based on each row's index to help join data across layers later.
 
 flood["id"] = flood.index
 wildfire["id"] = wildfire.index
 heat["id"] = heat.index
 
-#Sanity‑check critical columns exist
+#Checks if the normalized score column exists in each dataset. If not, it throws an error.
 assert "flood_score_norm" in flood.columns, "Column 'flood_score_norm' is missing"
 assert "wildfire_score_norm" in wildfire.columns, "Column 'wildfire_score_norm' is missing"
 assert "heat_score_norm" in heat.columns, "Column 'heat_score_norm' is missing"
 
 
-#Merge individual risk layers
+#Joins the three datasets into one, combining their risk scores using the shared ID
 
 combined = (
     flood
@@ -32,7 +32,7 @@ combined = (
 )
 
 
-#Determine Dominant Risk Category
+#For each row, determines which risk score is highest and labels it "Flood", "Wildfire", or "Heat" in a new column.
 
 
 def get_dominant_risk(row):
@@ -49,9 +49,9 @@ combined["dominant_risk"] = combined.apply(get_dominant_risk, axis=1)
 
 # Build the interactive map
 
-#Center on the dataset (use centroid of first geometry)
+#Initializes a folium map centered on the first polygon. Uses a nice terrain-style background.
 center_point = combined.geometry.iloc[0].centroid
-m = folium.Map(location=[center_point.y, center_point.x], zoom_start=9)
+m = folium.Map(location=[center_point.y, center_point.x], zoom_start=9, tiles="Stadia StamenTerrain")
 
 
 # Individual risk layers
@@ -102,7 +102,7 @@ folium.GeoJson(
 heat_fg.add_to(m)
 
 
-#Dominant risk layer
+#loops through merged polygons, colors each of them, shows the dominate category.
 
 combined_fg = folium.FeatureGroup(name="Dominant Risk Category")
 
@@ -126,7 +126,7 @@ for _, row in combined.iterrows():
 combined_fg.add_to(m)
 
 
-#Map legend
+#creates a fixed position html legend box. shows what the colors mean. 
 
 legend_html = """
 <div style='position: fixed; bottom: 50px; left: 50px; width: 160px; height: 120px; 
